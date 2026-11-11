@@ -1,4 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- Android adaptive foreground. Transparent; the Q stays inside the central safe circle (about 61% of the canvas) so no launcher mask clips it. -->
-  <image href="q-white.png" xlink:href="q-white.png" x="292" y="292" width="440" height="440"/>
+  <!-- Android adaptive foreground: the colour Q, on the white set as adaptiveIcon.backgroundColor. Scaled to 76% and centred on the Q so its tail stays inside the central safe circle (about 61% of the canvas) and no launcher mask clips it. -->
+  <image href="q-colour.png" xlink:href="q-colour.png" x="133.5" y="123.3" width="778.2" height="778.2"/>
 </svg>

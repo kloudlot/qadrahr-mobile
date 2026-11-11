@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Android 13+ themed icon: the Q as a WHITE SILHOUETTE on transparent (Android uses only the alpha), placed exactly like adaptive-icon.svg. q-silhouette.png is q-colour.png with its white background keyed out. -->
+  <image href="q-silhouette.png" xlink:href="q-silhouette.png" x="133.5" y="123.3" width="778.2" height="778.2"/>
+</svg>

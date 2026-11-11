@@ -27,14 +27,15 @@ const OWNER = "kloudlot";
 /**
  * From `eas init`, or the project page on expo.dev.
  *
- * QadraHR needs its OWN Expo project (never the HR Suite or legacy Qadra
- * one): run `eas init`, then either paste the id here as the fallback or
- * set EAS_PROJECT_ID. A dynamic config cannot be rewritten by the CLI.
- * While it is empty, push registration returns null at runtime —
- * `lib/push.ts` treats a missing id as "push is not configured here" —
- * and OTA updates are off.
+ * This is QadraHR's own Expo project, @kloudlot/qadrahr (not the HR Suite
+ * or legacy Qadra one).
+ *
+ * Committed deliberately: a dynamic config cannot be rewritten by the
+ * CLI, and an empty one makes push registration return null at runtime
+ * with no explanation — `lib/push.ts` treats a missing id as "push is
+ * not configured here", which is correct and silent.
  */
-const EAS_PROJECT_ID = process.env.EAS_PROJECT_ID ?? "";
+const EAS_PROJECT_ID = process.env.EAS_PROJECT_ID ?? "dc5bf615-f5b4-4a89-8d91-42a751dc7d3d";
 
 /**
  * Fails an EAS build that would ship pointing at the wrong API.
@@ -122,9 +123,10 @@ const config = (): ExpoConfig => ({
     permissions: ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
-      // The same white glyph: Android 13+ tints it for themed icons.
-      monochromeImage: "./assets/adaptive-icon.png",
-      backgroundColor: "#168AAD",
+      // The Q's white silhouette: Android 13+ tints it for themed icons.
+      monochromeImage: "./assets/adaptive-monochrome.png",
+      // White, as in assets/icon.png (the legacy QadraHR app's colour Q on white).
+      backgroundColor: "#FFFFFF",
     },
   },
 
