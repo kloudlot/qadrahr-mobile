@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Splash mark, on the page colour set in app.config.ts. -->
+  <rect x="192" y="192" width="640" height="640" rx="160" fill="#168AAD"/>
+  <image href="q-white.png" xlink:href="q-white.png" x="332" y="332" width="360" height="360"/>
+</svg>

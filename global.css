@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * QadraHR tokens, as RGB channels.
+ *
+ * GENERATED from lib/theme/tokens.ts and lib/theme/color.ts — change them
+ * there; lib/theme/tokens.test.ts fails if this file drifts from them.
+ *
+ * Written as space-separated RGB rather than hex for two reasons, and the
+ * second is the important one:
+ *
+ *   1. Tailwind opacity modifiers (bg-brand/10) need the channels.
+ *   2. `--brand-*` is tenant-replaceable AT RUNTIME. A tenant's accent
+ *      arrives after sign-in, so it cannot be compiled into a class.
+ *      Mapping Tailwind colours to variables means `bg-brand` resolves
+ *      through the variable every render, and ThemeProvider re-themes the
+ *      app with `vars()` — no rebuild.
+ *
+ * SEMANTIC COLOURS ARE NEVER OVERRIDDEN. Success is the same green for
+ * every tenant, because support reads screenshots and a tenant whose
+ * "success" is red makes that impossible.
+ *
+ * Dark mode is `.dark:root` (tailwind `darkMode: "class"`); ThemeProvider
+ * sets the scheme from the user's choice, or the system's.
+ */
+
+@layer base {
+  :root {
+    /* Brand — the tenant-replaceable group. These are the defaults (the web
+       console's QadraHR teal); ThemeProvider overrides them at runtime. */
+    --brand-primary: 22 138 173;
+    --brand-primary-hover: 20 124 156;
+    --brand-primary-active: 18 110 138;
+    --brand-primary-subtle: 232 243 247;
+    --brand-primary-border: 185 220 230;
+    --brand-on-primary: 255 255 255;
+
+    /* Semantic — fixed across every tenant. */
+    --success: 5 150 105; /* #059669 */
+    --success-subtle: 236 253 245; /* #ECFDF5 */
+    --success-ink: 6 95 70; /* #065F46 */
+    --warning: 217 119 6; /* #D97706 */
+    --warning-subtle: 255 251 235; /* #FFFBEB */
+    --warning-ink: 146 64 14; /* #92400E */
+    --danger: 220 38 38; /* #DC2626 */
+    --danger-subtle: 254 242 242; /* #FEF2F2 */
+    --danger-ink: 153 27 27; /* #991B1B */
+    --info: 8 145 178; /* #0891B2 */
+    --info-subtle: 236 254 255; /* #ECFEFF */
+    --info-ink: 21 94 117; /* #155E75 */
+    --neutral: 104 116 142; /* #68748E */
+    --neutral-subtle: 236 238 242; /* #ECEEF2 */
+    --neutral-ink: 68 76 95; /* #444C5F */
+
+    /* Surface ramp. */
+    --surface-0: 246 247 249; /* #F6F7F9 */
+    --surface-1: 255 255 255; /* #FFFFFF */
+    --surface-2: 236 238 242; /* #ECEEF2 */
+    --surface-3: 226 229 235; /* #E2E5EB */
+    --surface-4: 213 217 226; /* #D5D9E2 */
+    --surface-5: 135 146 169; /* #8792A9 */
+    --surface-6: 83 93 117; /* #535D75 */
+    --surface-7: 68 76 95; /* #444C5F */
+    --surface-8: 59 65 81; /* #3B4151 */
+    --surface-9: 28 32 48; /* #1C2030 */
+
+    /* On a brand fill or a dark hero. */
+    --text-on-dark: 246 247 249; /* #F6F7F9 */
+
+    /* Aliases — what screens actually reference. Roles, not values: dark
+       mode swaps the ramp underneath and every alias follows. */
+    --text-primary: var(--surface-9);
+    --text-body: var(--surface-7);
+    /* 4.5:1 on the page and card in both schemes. */
+    --text-secondary: var(--surface-6);
+    --text-label: var(--surface-8);
+    --text-disabled: var(--surface-5);
+
+    --border-default: var(--surface-3);
+    --border-strong: var(--surface-4);
+
+    --bg-page: var(--surface-0);
+    --bg-card: var(--surface-1);
+    --bg-inset: var(--surface-2);
+  }
+
+  .dark:root {
+    /* Brand — the tenant-replaceable group. These are the defaults (the web
+       console's QadraHR teal); ThemeProvider overrides them at runtime. */
+    --brand-primary: 22 138 173;
+    --brand-primary-hover: 45 150 181;
+    --brand-primary-active: 19 117 147;
+    --brand-primary-subtle: 23 46 61;
+    --brand-primary-border: 23 76 98;
+    --brand-on-primary: 255 255 255;
+
+    /* Semantic — fixed across every tenant. */
+    --success: 16 185 129; /* #10B981 */
+    --success-subtle: 13 42 34; /* #0D2A22 */
+    --success-ink: 110 231 183; /* #6EE7B7 */
+    --warning: 245 158 11; /* #F59E0B */
+    --warning-subtle: 46 34 16; /* #2E2210 */
+    --warning-ink: 252 211 77; /* #FCD34D */
+    --danger: 239 68 68; /* #EF4444 */
+    --danger-subtle: 47 20 22; /* #2F1416 */
+    --danger-ink: 252 165 165; /* #FCA5A5 */
+    --info: 6 182 212; /* #06B6D4 */
+    --info-subtle: 12 38 48; /* #0C2630 */
+    --info-ink: 103 232 249; /* #67E8F9 */
+    --neutral: 135 146 169; /* #8792A9 */
+    --neutral-subtle: 31 35 48; /* #1F2330 */
+    --neutral-ink: 201 207 219; /* #C9CFDB */
+
+    /* Surface ramp. */
+    --surface-0: 14 16 23; /* #0E1017 */
+    --surface-1: 23 26 36; /* #171A24 */
+    --surface-2: 31 35 48; /* #1F2330 */
+    --surface-3: 42 47 61; /* #2A2F3D */
+    --surface-4: 58 65 82; /* #3A4152 */
+    --surface-5: 93 102 124; /* #5D667C */
+    --surface-6: 154 163 184; /* #9AA3B8 */
+    --surface-7: 201 207 219; /* #C9CFDB */
+    --surface-8: 221 225 234; /* #DDE1EA */
+    --surface-9: 243 244 247; /* #F3F4F7 */
+
+    --text-on-dark: 246 247 249; /* #F6F7F9 */
+
+    /* Repeated rather than inherited: the aliases are re-declared here so
+       they resolve against the dark ramp without relying on var() being
+       re-evaluated across selectors. */
+    --text-primary: var(--surface-9);
+    --text-body: var(--surface-7);
+    /* 4.5:1 on the page and card in both schemes. */
+    --text-secondary: var(--surface-6);
+    --text-label: var(--surface-8);
+    --text-disabled: var(--surface-5);
+
+    --border-default: var(--surface-3);
+    --border-strong: var(--surface-4);
+
+    --bg-page: var(--surface-0);
+    --bg-card: var(--surface-1);
+    --bg-inset: var(--surface-2);
+  }
+}

@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Expo
+.expo/*
+dist/
+web-build/
+expo-env.d.ts
+
+# ...except the generated route types, which ARE committed.
+#
+# Same reasoning as the backend committing openapi.json: it is a
+# generated artifact, and committing it is what makes it checkable. With
+# `typedRoutes` on, tsc validates every router.push() against this file —
+# but ONLY if it exists, and it is produced by the dev server, not by
+# `expo config` or `expo export`. Ignored, it was absent in CI and on any
+# fresh clone, so route validation silently did nothing.
+#
+# Regenerate by running `npm start` after adding or moving a route, and
+# commit the diff. A reviewer seeing this file change is being told the
+# route surface moved.
+!.expo/
+.expo/*
+!.expo/types/
+.expo/types/*
+!.expo/types/router.d.ts
+
+# Native builds
+ios/
+android/
+
+# Local environment configuration
+.env
+.env.*
+!.env.example
+
+# Build output
+*.tsbuildinfo
+
+# OS and editor metadata
+.DS_Store
+.idea/
+*.log
+
+# Firebase config for Android push — supplied by EAS (GOOGLE_SERVICES_JSON), see docs/PUSH.md
+google-services.json
+GoogleService-Info.plist
+*firebase-adminsdk*.json

@@ -1,0 +1,43 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://localhost:4000/api/v1"
+      }
+    },
+
+    "device": {
+      "developmentClient": false,
+      "distribution": "internal",
+      "channel": "device",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://REPLACE-WITH-QADRAHR-API-HOST/api/v1"
+      },
+      "channel": "preview",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+
+    "production": {
+      "channel": "production",
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

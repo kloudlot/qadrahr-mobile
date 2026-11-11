@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: Typecheck, lint & tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npx expo lint --max-warnings 0
+
+      # The punch queue, working-day port, geo and colour maths: the parts
+      # that can lose someone's pay or misreport their leave.
+      - name: Unit tests
+        run: npm test -- --ci
+
+      # Builds are EAS's job (eas.json); a release build also refuses an
+      # API URL that isn't https — see app.config.ts.
+      - name: App config resolves
+        run: npx expo config --type public > /dev/null

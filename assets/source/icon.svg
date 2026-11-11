@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- App icon (iOS and the store listing). Full bleed and opaque: iOS masks the corners itself and rejects transparency. The Q is q-white.png (QadraHR brand pack, 512 px) scaled up; swap in a vector when one exists. -->
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#168AAD"/><stop offset="1" stop-color="#0D6A87"/></linearGradient></defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <image href="q-white.png" xlink:href="q-white.png" x="232" y="232" width="560" height="560"/>
+</svg>
