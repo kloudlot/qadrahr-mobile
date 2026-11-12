@@ -37,6 +37,12 @@ export interface PositionState {
   accuracyMetres: number | null;
   /** When the fix was taken — screen 02 shows "confirmed 4s ago". */
   acquiredAt: number | null;
+  /**
+   * True when the phone says this fix came from a mock-location provider
+   * (Android reports it; iOS does not). Sent with the punch, which is
+   * recorded and flagged — never refused here.
+   */
+  mocked: boolean;
   refresh: () => void;
 }
 
@@ -49,6 +55,7 @@ export function useCurrentPosition(): PositionState {
     coordinates: null,
     accuracyMetres: null,
     acquiredAt: null,
+    mocked: false,
   });
 
   const [attempt, setAttempt] = useState(0);
@@ -62,7 +69,7 @@ export function useCurrentPosition(): PositionState {
     };
 
     const fail = (status: Exclude<PositionStatus, "ready">) =>
-      settle({ status, coordinates: null, accuracyMetres: null, acquiredAt: null });
+      settle({ status, coordinates: null, accuracyMetres: null, acquiredAt: null, mocked: false });
 
     void (async () => {
       settle({
@@ -70,6 +77,7 @@ export function useCurrentPosition(): PositionState {
         coordinates: null,
         accuracyMetres: null,
         acquiredAt: null,
+        mocked: false,
       });
 
       // Checked before the permission, because the two are genuinely
@@ -100,6 +108,7 @@ export function useCurrentPosition(): PositionState {
           coordinates: { latitude: fix.coords.latitude, longitude: fix.coords.longitude },
           accuracyMetres: fix.coords.accuracy ?? null,
           acquiredAt: Date.now(),
+          mocked: fix.mocked === true,
         });
       } catch {
         fail("unavailable");

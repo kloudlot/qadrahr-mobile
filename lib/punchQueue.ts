@@ -52,6 +52,16 @@ export interface QueuedPunch {
   latitude: number | null;
   longitude: number | null;
   accuracyMetres: number | null;
+  /** The phone said the fix came from a mock-location provider. */
+  mockedLocation?: boolean;
+  /**
+   * A photo of the employee's face, taken when the punch was made, where
+   * their organisation asks for a face check. A local file: with no
+   * connection there can be no sitting, so this is what the server is given
+   * instead when the queue syncs. It matches the face but cannot show the
+   * person was there, so the punch is flagged for a supervisor.
+   */
+  selfieUri?: string;
   /** Bumped on every failed send, for backoff and for the UI. */
   attempts: number;
 }
@@ -177,7 +187,11 @@ type ClockBody = Omit<Body<"POST /me/attendance/clock">, "latitude" | "longitude
   accuracyMetres: number | null;
 };
 
-export function toRequestBody(punch: QueuedPunch): ClockBody {
+/**
+ * `faceCaptureKey` is where the queued photo ended up, once it has been
+ * uploaded. The local path never goes to the server.
+ */
+export function toRequestBody(punch: QueuedPunch, faceCaptureKey?: string): ClockBody {
   return {
     clientPunchId: punch.clientPunchId,
     direction: punch.direction,
@@ -185,5 +199,7 @@ export function toRequestBody(punch: QueuedPunch): ClockBody {
     latitude: punch.latitude,
     longitude: punch.longitude,
     accuracyMetres: punch.accuracyMetres,
+    ...(punch.mockedLocation ? { mockedLocation: true } : {}),
+    ...(faceCaptureKey ? { faceCaptureKey } : {}),
   };
 }

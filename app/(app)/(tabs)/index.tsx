@@ -18,7 +18,9 @@ import { ClockCard } from "@/components/clock/ClockCard";
 import { ClockIssueSheet } from "@/components/clock/ClockIssueSheet";
 import { StatTile } from "@/components/clock/StatTile";
 import { WeekStrip } from "@/components/clock/WeekStrip";
+import { FaceSittingModal } from "@/components/face/FaceSittingModal";
 import { AnnouncementsCard } from "@/components/home/AnnouncementsCard";
+import { FaceSetupBanner } from "@/components/home/FaceSetupBanner";
 import { PoliciesBanner } from "@/components/home/PoliciesBanner";
 import { QuickActions, type QuickAction } from "@/components/home/QuickActions";
 import { ErrorView, LoadingView } from "@/components/state/StateViews";
@@ -167,6 +169,8 @@ export default function HomeScreen() {
             onPunch={() => clock.punch()}
           />
 
+          <FaceSetupBanner />
+
           <QuickActions actions={actions} />
 
           <PoliciesBanner />
@@ -208,6 +212,11 @@ export default function HomeScreen() {
           clock.punch({ force: true });
         }}
       />
+
+      {/* The sitting for the punch being made, where the organisation asks
+          for a face. It opens after every other question has been answered,
+          and how it ends decides whether the punch is sent. */}
+      <FaceSittingModal purpose="punch" visible={clock.faceSitting} onResult={clock.onFaceSitting} />
     </>
   );
 }

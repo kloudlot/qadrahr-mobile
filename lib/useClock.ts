@@ -5,6 +5,9 @@ import { isAxiosError } from "axios";
 
 import { http, errorMessage } from "./api";
 import type { Res } from "@/lib/api/types";
+import { needsSitting, type SittingResult } from "./face";
+import { useFaceStatus } from "./queries/face";
+import { takeQueuedSelfie } from "./selfie";
 import { checkGeofence, metresOutside } from "./geo";
 import {
   attendanceKeys,
@@ -44,7 +47,23 @@ export type ClockIssue =
   | { kind: "location_off"; reason: "denied" | "disabled"; branchName: string | null }
   | { kind: "queued"; at: string }
   | { kind: "already_clocked_in"; since: string }
+  /**
+   * The face check could not be run at all — no camera, or the page would
+   * not open. `canProceed` when the organisation records such a punch and
+   * flags it; where it refuses them, there is nothing to offer but a retry.
+   */
+  | { kind: "face_failed"; message: string; canProceed: boolean }
   | { kind: "rejected"; message: string };
+
+/** What a punch is sent with, beyond what the screen already knows. */
+interface PunchArgs {
+  /** The pre-flight questions were asked and answered: do not ask again. */
+  force: boolean;
+  /** The sitting done for this punch. The server reads its own verdict from it. */
+  faceSessionId?: string;
+  /** The face check could not be run and the employee chose to clock in regardless. */
+  skipFace?: boolean;
+}
 
 /**
  * Whether a session is open.
@@ -93,6 +112,10 @@ interface ClockState {
   dismissIssue: () => void;
   /** Sends the punch, after any pre-flight the caller already accepted. */
   punch: (options?: { force?: boolean }) => void;
+  /** True while a face sitting should be on screen for the punch being made. */
+  faceSitting: boolean;
+  /** How that sitting ended. Sends the punch, or does not, accordingly. */
+  onFaceSitting: (result: SittingResult) => void;
   isPunching: boolean;
   /** A 201 that came back flagged. Shown inline, not as a sheet. */
   warning: string | null;
@@ -106,6 +129,8 @@ export function useClock(businessDate: string, userId: string | undefined): Cloc
   const punches = usePunches(businessDate);
   const workLocation = useWorkLocation();
   const shift = useMyShift(businessDate);
+  const face = useFaceStatus();
+  const [faceSitting, setFaceSitting] = useState(false);
 
   const queued = usePunchQueue(userId);
   // The punch just sent, shown as done before the server answers — the
@@ -152,7 +177,7 @@ export function useClock(businessDate: string, userId: string | undefined): Cloc
   }, [today.data?.workedMinutes, clockedIn, openedAt, now]);
 
   const mutation = useMutation({
-    mutationFn: async (force: boolean) => {
+    mutationFn: async ({ force, faceSessionId, skipFace }: PunchArgs) => {
       const fence = workLocation.data?.geofence ?? null;
       const coordinates = position.coordinates;
 
@@ -229,22 +254,34 @@ export function useClock(businessDate: string, userId: string | undefined): Cloc
         latitude: coordinates?.latitude ?? null,
         longitude: coordinates?.longitude ?? null,
         accuracyMetres: position.accuracyMetres ?? null,
+        ...(position.mocked ? { mockedLocation: true } : {}),
       };
+      const wantsFace = needsSitting(face.data);
 
       // Offline (or behind a stuck punch): queue it and say so. The punch
       // is safe, which is why screen 03 treats this as reassurance rather
       // than a failure.
       if (mustQueue) {
         const occurredAt = new Date().toISOString();
+        const clientPunchId = newPunchId();
+        // No connection, so no sitting: one photo instead, matched when the
+        // queue syncs. Without one the punch still queues — see lib/selfie.ts.
+        const selfieUri = wantsFace ? await takeQueuedSelfie(clientPunchId) : null;
         await addToQueue({
           ...body,
-          clientPunchId: newPunchId(),
+          clientPunchId,
           userId: userId ?? "",
           occurredAt,
           attempts: 0,
+          ...(selfieUri ? { selfieUri } : {}),
         });
         return { queued: true as const, occurredAt, direction };
       }
+
+      // The organisation asks for a face, and this punch has none yet: stop
+      // and run the sitting. Asked last, after every other question, so
+      // nobody sits for a punch they then decide not to make.
+      if (wantsFace && !faceSessionId && !skipFace) throw new FaceSittingStop();
 
       // Every check has passed: show it as done. Set here, not on the
       // tap, so a geofence question never flips the card and back.
@@ -256,6 +293,7 @@ export function useClock(businessDate: string, userId: string | undefined): Cloc
       const { data } = await http.post<Res<"POST /me/attendance/clock">>("/me/attendance/clock", {
         clientPunchId: newPunchId(),
         ...body,
+        ...(faceSessionId ? { faceSessionId } : {}),
       });
 
       return { queued: false as const, warning: data.warning ?? null, direction };
@@ -281,6 +319,10 @@ export function useClock(businessDate: string, userId: string | undefined): Cloc
     onError: (error) => {
       // Roll back: the card shows what the server has, not what was hoped.
       setOptimistic(null);
+      if (error instanceof FaceSittingStop) {
+        setFaceSitting(true);
+        return;
+      }
       if (error instanceof PreflightStop) {
         setIssue(error.issue);
         return;
@@ -302,9 +344,39 @@ export function useClock(businessDate: string, userId: string | undefined): Cloc
     (options?: { force?: boolean }) => {
       setWarning(null);
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      mutation.mutate(options?.force ?? false);
+      mutation.mutate({
+        force: options?.force ?? false,
+        // "Clock in anyway", from the sheet that said the face check could
+        // not be run: the one case where it is skipped on purpose.
+        skipFace: options?.force === true && issue?.kind === "face_failed",
+      });
     },
-    [mutation],
+    [mutation, issue?.kind],
+  );
+
+  const onFaceSitting = useCallback(
+    (result: SittingResult) => {
+      setFaceSitting(false);
+      switch (result.kind) {
+        case "judged":
+        case "unavailable":
+          // Verified or not, the punch goes with the sitting it was made
+          // for: the server records it clean, records and flags it, or
+          // refuses it, from what the sitting itself showed.
+          mutation.mutate({ force: true, faceSessionId: result.sessionId });
+          return;
+        case "failed":
+          setIssue({
+            kind: "face_failed",
+            message: result.message,
+            canProceed: face.data?.onFailure !== "block",
+          });
+          return;
+        case "abandoned":
+          return;
+      }
+    },
+    [mutation, face.data?.onFailure],
   );
 
   return {
@@ -327,6 +399,8 @@ export function useClock(businessDate: string, userId: string | undefined): Cloc
     issue,
     dismissIssue: useCallback(() => setIssue(null), []),
     punch,
+    faceSitting,
+    onFaceSitting,
     isPunching: mutation.isPending,
     warning,
   };
@@ -351,6 +425,13 @@ function usePunchQueue(userId: string | undefined) {
     networkMode: "always",
     staleTime: Infinity,
   });
+}
+
+/** Stops the mutation so a face sitting can be run first. Not a failure. */
+class FaceSittingStop extends Error {
+  constructor() {
+    super("face-sitting");
+  }
 }
 
 /** Carries a pre-flight decision out of the mutation without a 4xx. */

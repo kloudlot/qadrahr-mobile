@@ -77,7 +77,10 @@ const config = (): ExpoConfig => ({
   name: PRODUCT_NAME,
   slug: "qadrahr",
   owner: OWNER,
-  version: "1.0.0",
+  // 1.1.0: the face check added a native module (react-native-webview).
+  // `runtimeVersion` below follows this, so an over-the-air update that
+  // uses the module can only reach builds that contain it.
+  version: "1.1.0",
   orientation: "portrait",
   scheme: "qadrahr",
   // Rendered from assets/source/*.svg by `npm run icons`, which is also
@@ -104,7 +107,7 @@ const config = (): ExpoConfig => ({
       // Both reason strings name the actual use. "To provide a better
       // experience" gets apps rejected and tells the employee nothing
       // about what their camera roll is being read for.
-      NSCameraUsageDescription: `${PRODUCT_NAME} uses the camera to photograph receipts for expense claims.`,
+      NSCameraUsageDescription: `${PRODUCT_NAME} uses the camera to confirm it is you when you clock in, and to photograph receipts for expense claims.`,
       NSPhotoLibraryUsageDescription:
         `${PRODUCT_NAME} lets you attach a receipt you have already photographed to an expense claim.`,
     },
@@ -165,7 +168,7 @@ const config = (): ExpoConfig => ({
         photosPermission:
           `${PRODUCT_NAME} lets you attach a receipt you have already photographed to an expense claim.`,
         cameraPermission:
-          `${PRODUCT_NAME} uses the camera to photograph receipts for expense claims.`,
+          `${PRODUCT_NAME} uses the camera to confirm it is you when you clock in, and to photograph receipts for expense claims.`,
       },
     ],
     [

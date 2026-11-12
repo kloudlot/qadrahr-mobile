@@ -1,7 +1,10 @@
 import { isAxiosError } from "axios";
 import { onlineManager } from "@tanstack/react-query";
 
+import { File } from "expo-file-system";
+
 import { http, errorMessage } from "./api";
+import type { Res } from "./api/types";
 import {
   applyOutcome,
   enqueue,
@@ -73,9 +76,14 @@ export async function forgetQueuedPunches(userId: string): Promise<void> {
  */
 async function send(punch: QueuedPunch): Promise<SendOutcome> {
   try {
-    await http.post("/me/attendance/clock", toRequestBody(punch));
+    const faceCaptureKey = punch.selfieUri ? await uploadSelfie(punch.selfieUri) : undefined;
+    await http.post("/me/attendance/clock", toRequestBody(punch, faceCaptureKey));
+    if (punch.selfieUri) await forgetSelfie(punch.selfieUri);
     return { kind: "accepted" };
   } catch (error) {
+    // The photo could not be uploaded: storage was unreachable. The punch
+    // waits with its photo rather than going without it.
+    if (error instanceof SelfieUploadError) return { kind: "retry" };
     if (!isAxiosError(error)) return { kind: "retry" };
 
     const status = error.response?.status;
@@ -88,6 +96,54 @@ async function send(punch: QueuedPunch): Promise<SendOutcome> {
     if (status >= 400) return { kind: "rejected", message: errorMessage(error) };
 
     return { kind: "retry" };
+  }
+}
+
+class SelfieUploadError extends Error {}
+
+/**
+ * Uploads the photo taken with an offline punch; returns the key to send
+ * as `faceCaptureKey`, or undefined when the photo is no longer on the
+ * phone (the OS cleared it) — the punch then goes without one and the
+ * server flags it, which is better than a punch that can never be sent.
+ */
+async function uploadSelfie(uri: string): Promise<string | undefined> {
+  if (!new File(uri).exists) return undefined;
+
+  // A 4xx here means the face check does not apply after all (turned off,
+  // or not in the plan): send the punch without the photo. Anything else
+  // propagates and is classified with the punch's own failures.
+  let slot: Res<"POST /me/attendance/face/selfie-slot">;
+  try {
+    ({ data: slot } = await http.post<Res<"POST /me/attendance/face/selfie-slot">>(
+      "/me/attendance/face/selfie-slot",
+      { contentType: "image/jpeg" },
+    ));
+  } catch (error) {
+    const status = isAxiosError(error) ? error.response?.status : undefined;
+    if (status && status >= 400 && status < 500 && status !== 401) return undefined;
+    throw error;
+  }
+
+  const body = await fetch(uri).then((response) => response.blob());
+  // Not the app's axios instance: the presigned URL is signed for exactly
+  // these headers (see lib/receipts.ts).
+  const put = await fetch(slot.uploadUrl, {
+    method: "PUT",
+    headers: { ...slot.requiredHeaders, "Content-Type": "image/jpeg" },
+    body,
+  }).catch(() => null);
+  if (!put?.ok) throw new SelfieUploadError("upload");
+  return slot.key;
+}
+
+/** Removes the photo from the phone once its punch is on the server. */
+async function forgetSelfie(uri: string): Promise<void> {
+  try {
+    const file = new File(uri);
+    if (file.exists) file.delete();
+  } catch {
+    // Best effort: it is in the app's own cache, which the OS clears anyway.
   }
 }
 

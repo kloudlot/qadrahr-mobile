@@ -121,11 +121,26 @@ export type ClockDto = {
   "longitude"?: number;
   /** The device's own reported error, in metres. */
   "accuracyMetres"?: number;
-  /** Storage key of a selfie taken at capture. */
-  "selfieKey"?: string;
+  /** True when the phone reports the position came from a mock-location provider. The punch is recorded and flagged. */
+  "mockedLocation"?: boolean;
+  /** The face sitting done for this punch (POST /me/attendance/face/sessions). What the server concluded from it goes onto the punch; a sitting backs one punch. */
+  "faceSessionId"?: string;
+  /** For a punch made offline: the key of a photo uploaded to a slot from POST /me/attendance/face/selfie-slot. It is matched, but cannot show the person was there, so the punch is flagged. */
+  "faceCaptureKey"?: string;
   "deviceId"?: string;
   /** Client-generated id making a retry harmless. Offline clients queue punches, so retries are the normal case rather than the exception. */
   "clientPunchId"?: string;
+};
+
+export type PunchVerificationResponseDto = {
+  "method": "face";
+  /** Only `verified` is unremarkable; every other value raises an exception on the day. `pending` becomes one of the others once the face has been checked. */
+  "status": "verified" | "uncertain" | "mismatch" | "liveness_failed" | "liveness_not_checked" | "not_enrolled" | "pending" | "unverified";
+  /** Similarity to the enrolled face, 0–1, when the two were compared. */
+  "score": number | null;
+  "sessionId": string | null;
+  "model": string | null;
+  "checkedAt": string | null;
 };
 
 export type PunchEventResponseDto = {
@@ -149,6 +164,12 @@ export type PunchEventResponseDto = {
   /** The device’s own accuracy claim. The geofence is widened by it. */
   "accuracyMetres": number | null;
   "distanceMetres": number | null;
+  /** True when the phone reported a mock-location provider. Null when it did not say. */
+  "mockedLocation": boolean | null;
+  /** For a punch from a terminal: how the terminal identified the employee. */
+  "terminalVerifyMode": "fingerprint" | "face" | "card" | "password" | "other" | null;
+  /** The face check. Null when none applied to this punch. */
+  "verification": PunchVerificationResponseDto | null;
   /** Null when the punch carried no location — not the same as false. */
   "withinGeofence": boolean | null;
   "deviceId": string | null;
@@ -202,6 +223,8 @@ export type ClockResponseDto = {
 };
 
 export type PunchInputDto = {
+  /** How the terminal identified the employee, when it says. */
+  "verifyMode"?: "fingerprint" | "face" | "card" | "password" | "other";
   "employeeNumber"?: string;
   "employeeId"?: string;
   /** The terminal's enrolment number, when the punch came from a device. */
@@ -529,6 +552,212 @@ export type UpdateCompanyDto = {
   "status"?: "active" | "inactive";
 };
 
+export type FaceSettingsResponseDto = {
+  "mode": "off" | "required";
+  "onFailure": "flag" | "block";
+  "enrolmentApproval": "auto" | "hr_review";
+  "captureRetentionDays": number;
+  "branchIds": string[];
+};
+
+export type FaceAvailabilityResponseDto = {
+  "available": boolean;
+  /** Why the face check cannot be turned on, or null when it can. */
+  "reason": "not_configured" | "not_in_plan" | null;
+};
+
+export type AttendanceSettingsResponseDto = {
+  "companyId": string | null;
+  /** True when this company has none of its own and uses the organisation's. */
+  "inherited": boolean;
+  "face": FaceSettingsResponseDto;
+  "faceAvailability": FaceAvailabilityResponseDto;
+  "updatedAt": string | null;
+};
+
+export type UpdateFaceSettingsDto = {
+  /** `required` asks for a face at every clock-in from the app. Refused with 409 when the face check isn't in the plan or isn't available on this server. */
+  "mode"?: "off" | "required";
+  /** `flag` records the punch and raises an exception. `block` refuses a punch whose face is definitely someone else or whose liveness check failed; an uncertain match, an engine that is down and a punch queued offline are still recorded and flagged. */
+  "onFailure"?: "flag" | "block";
+  /** Whether HR reviews an enrolment before it is used. */
+  "enrolmentApproval"?: "auto" | "hr_review";
+  /** Days the photos taken at clock-in are kept before they are deleted. */
+  "captureRetentionDays"?: number;
+  /** Branches the check applies to. Empty means all of them. */
+  "branchIds"?: string[];
+};
+
+export type UpdateAttendanceSettingsDto = {
+  "face"?: UpdateFaceSettingsDto;
+};
+
+export type MyFaceEnrolmentResponseDto = {
+  "status": "pending_review" | "approved" | "rejected";
+  /** Why HR turned it down, if they did. */
+  "reviewNote": string | null;
+  "enrolledAt": string | null;
+};
+
+export type BiometricNoticeResponseDto = {
+  "version": number;
+  "title": string;
+  "paragraphs": string[];
+};
+
+export type MyFaceStatusResponseDto = {
+  /** What the app should do next. `off`: no face is asked for. `needs_consent` and `needs_enrolment`: clock-ins are recorded and flagged until the employee has enrolled. `awaiting_review`: enrolled, and HR has yet to approve it. `ready`: take a face at clock-in. */
+  "state": "unavailable" | "off" | "needs_consent" | "needs_enrolment" | "awaiting_review" | "ready";
+  /** Whether a face is asked for at this employee’s clock-ins. */
+  "required": boolean;
+  "onFailure": "flag" | "block";
+  "availability": FaceAvailabilityResponseDto;
+  "consentGiven": boolean;
+  "enrolment": MyFaceEnrolmentResponseDto | null;
+  "notice": BiometricNoticeResponseDto;
+};
+
+export type GiveConsentDto = {
+  /** The version of the notice that was on the screen. */
+  "noticeVersion": number;
+};
+
+export type StartFaceSessionDto = {
+  "purpose": "enrol" | "punch";
+};
+
+export type FaceSessionStartedResponseDto = {
+  "sessionId": string;
+  "purpose": "enrol" | "punch";
+  /** The capture page, to open in a web view. The link is the credential. */
+  "url": string;
+  "expiresAt": string;
+};
+
+export type SelfieSlotDto = {
+  "contentType": "image/jpeg" | "image/png" | "image/webp";
+};
+
+export type FaceFrameSlotResponseDto = {
+  "role": "align" | "turn" | "final";
+  "uploadUrl": string;
+  "key": string;
+  "requiredHeaders": Record<string, unknown>;
+};
+
+export type FaceSessionSummaryResponseDto = {
+  "sessionId": string;
+  "purpose": "enrol" | "punch";
+  "outcome": "verified" | "uncertain" | "mismatch" | "liveness_failed" | "low_quality" | null;
+  "awaitingCheck": boolean;
+  "attemptsLeft": number;
+  "used": boolean;
+  "expiresAt": string;
+};
+
+export type FaceSessionViewResponseDto = {
+  "purpose": "enrol" | "punch";
+  "challenges": string[];
+  "attemptsLeft": number;
+  "expiresAt": string;
+  "firstName": string | null;
+  "orgName": string;
+  "productName": string;
+  "brandColor": string;
+  "brandTextColor": string;
+};
+
+export type FrameSlotDto = {
+  "role": "align" | "turn" | "final";
+  "contentType": "image/jpeg" | "image/png" | "image/webp";
+};
+
+export type FrameSlotsDto = {
+  "frames": FrameSlotDto[];
+};
+
+export type SubmitFramesDto = {
+  /** Key of the frame taken before the challenges. */
+  "align"?: string;
+  /** Key of the frame taken as the head-turn challenge passed. */
+  "turn"?: string;
+  /** Key of the gated frontal photo: the one that is matched. */
+  "final": string;
+};
+
+export type FaceSubmitVerdictResponseDto = {
+  "status": "verified" | "rejected";
+  "outcome"?: "verified" | "uncertain" | "enrolled" | "pending_review";
+  /** `low_quality`: take the photo again. `no_match` and `liveness`: start the sitting over. `policy`: stop. */
+  "reason"?: "low_quality" | "no_match" | "liveness" | "policy";
+  "message"?: string;
+  "retryable"?: boolean;
+  "attemptsLeft"?: number;
+};
+
+export type FaceNamedEmployeeResponseDto = {
+  "employeeId": string;
+  "name": string;
+  "employeeNumber": string;
+};
+
+export type FaceEnrolmentRowResponseDto = {
+  "employeeId": string;
+  "name"?: string;
+  "employeeNumber"?: string;
+  "status": "pending_review" | "approved" | "rejected";
+  "approvedVia": "onboarding_photo" | "automatic" | "reviewer" | null;
+  /** Another employee whose enrolled face this one closely resembles. */
+  "resembles": FaceNamedEmployeeResponseDto | null;
+  "resemblanceScore": number | null;
+  "photoCount": number;
+  "reviewNote": string | null;
+  "reviewedAt": string | null;
+  "enrolledAt": string | null;
+};
+
+export type FacePhotoUrlsResponseDto = {
+  /** Short-lived links. Each view is recorded. */
+  "urls": string[];
+};
+
+export type ApproveEnrolmentDto = {
+  "note"?: string;
+};
+
+export type FaceEnrolmentStatusResponseDto = {
+  "status": "pending_review" | "approved" | "rejected";
+};
+
+export type RejectEnrolmentDto = {
+  /** Why, in words the employee can be shown. */
+  "note": string;
+};
+
+export type FaceCaptureResponseDto = {
+  "role": "align" | "turn" | "final";
+  "url": string;
+};
+
+export type FacePunchReviewResponseDto = {
+  "punchId": string;
+  "employeeId": string;
+  "status": "verified" | "uncertain" | "mismatch" | "liveness_failed" | "liveness_not_checked" | "not_enrolled" | "pending" | "unverified";
+  /** Similarity to the enrolled face, 0–1, when the two were compared. */
+  "score": number | null;
+  /** Which check failed, if one did. */
+  "problem": string | null;
+  /** True when the punch came with one photo taken offline. */
+  "offlinePhoto": boolean;
+  "challenges": string[];
+  /** When the photos were deleted under the retention setting, if they have been. */
+  "photosDeletedAt": string | null;
+  /** The photos taken for this punch. Empty once retention has deleted them. */
+  "captures": FaceCaptureResponseDto[];
+  /** Links to the employee's enrolment photos. */
+  "enrolled": string[];
+};
+
 export type CreateDocumentTypeDto = {
   "name": string;
   "code": string;
@@ -737,7 +966,7 @@ export type ReportKindResponseDto = {
   "name": string;
   "description": string;
   "category": "workforce" | "time" | "leave" | "pay" | "talent" | "compliance" | "custom";
-  "module": "core_hr" | "time_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets" | null;
+  "module": "core_hr" | "time_attendance" | "face_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets" | null;
   /** range needs from/to; year takes a leave year; snapshot is as at today. */
   "period": "range" | "year" | "snapshot";
   "filters": ("department" | "branch" | "leaveTypes")[];
@@ -4520,7 +4749,7 @@ export type PlanResponseDto = {
   "code": string;
   "name": string;
   "description"?: string;
-  "modules": ("core_hr" | "time_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets")[];
+  "modules": ("core_hr" | "time_attendance" | "face_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets")[];
   "maxEmployees": number | null;
   "status": "active" | "retired";
 };
@@ -4530,7 +4759,7 @@ export type CreatePlanDto = {
   "code": string;
   "name": string;
   "description"?: string;
-  "modules": ("core_hr" | "time_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets")[];
+  "modules": ("core_hr" | "time_attendance" | "face_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets")[];
   /** Headcount ceiling. Recorded, not enforced. */
   "maxEmployees"?: number;
 };
@@ -4540,7 +4769,7 @@ export type UpdatePlanDto = {
   "code"?: string;
   "name"?: string;
   "description"?: string;
-  "modules"?: ("core_hr" | "time_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets")[];
+  "modules"?: ("core_hr" | "time_attendance" | "face_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets")[];
   /** Headcount ceiling. Recorded, not enforced. */
   "maxEmployees"?: number;
   "status"?: "active" | "retired";
@@ -4563,7 +4792,7 @@ export type TenantPlanResponseDto = {
 
 export type EntitlementsResponseDto = {
   "planCode": string | null;
-  "modules": ("core_hr" | "time_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets")[];
+  "modules": ("core_hr" | "time_attendance" | "face_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets")[];
   /** True when no plan restricts this tenant. */
   "unrestricted": boolean;
 };
@@ -7582,6 +7811,126 @@ export interface Operations {
     query: Record<string, never>;
     body: never;
     response: CompanyResponseDto;
+  };
+  "GET /attendance/settings": {
+    path: Record<string, never>;
+    query: Record<string, never>;
+    body: never;
+    response: AttendanceSettingsResponseDto;
+  };
+  "PUT /attendance/settings": {
+    path: Record<string, never>;
+    query: Record<string, never>;
+    body: UpdateAttendanceSettingsDto;
+    response: AttendanceSettingsResponseDto;
+  };
+  "GET /attendance/settings/companies/{companyId}": {
+    path: { "companyId": string };
+    query: Record<string, never>;
+    body: never;
+    response: AttendanceSettingsResponseDto;
+  };
+  "PUT /attendance/settings/companies/{companyId}": {
+    path: { "companyId": string };
+    query: Record<string, never>;
+    body: UpdateAttendanceSettingsDto;
+    response: AttendanceSettingsResponseDto;
+  };
+  "DELETE /attendance/settings/companies/{companyId}": {
+    path: { "companyId": string };
+    query: Record<string, never>;
+    body: never;
+    response: AttendanceSettingsResponseDto;
+  };
+  "GET /me/attendance/face/status": {
+    path: Record<string, never>;
+    query: Record<string, never>;
+    body: never;
+    response: MyFaceStatusResponseDto;
+  };
+  "POST /me/attendance/face/consent": {
+    path: Record<string, never>;
+    query: Record<string, never>;
+    body: GiveConsentDto;
+    response: MyFaceStatusResponseDto;
+  };
+  "DELETE /me/attendance/face/consent": {
+    path: Record<string, never>;
+    query: Record<string, never>;
+    body: never;
+    response: void;
+  };
+  "POST /me/attendance/face/sessions": {
+    path: Record<string, never>;
+    query: Record<string, never>;
+    body: StartFaceSessionDto;
+    response: FaceSessionStartedResponseDto;
+  };
+  "POST /me/attendance/face/selfie-slot": {
+    path: Record<string, never>;
+    query: Record<string, never>;
+    body: SelfieSlotDto;
+    response: FaceFrameSlotResponseDto;
+  };
+  "GET /me/attendance/face/sessions/{sessionId}": {
+    path: { "sessionId": string };
+    query: Record<string, never>;
+    body: never;
+    response: FaceSessionSummaryResponseDto;
+  };
+  "GET /public/face/{token}": {
+    path: Record<string, never>;
+    query: Record<string, never>;
+    body: never;
+    response: FaceSessionViewResponseDto;
+  };
+  "POST /public/face/{token}/frames": {
+    path: Record<string, never>;
+    query: Record<string, never>;
+    body: FrameSlotsDto;
+    response: FaceFrameSlotResponseDto[];
+  };
+  "POST /public/face/{token}/submit": {
+    path: Record<string, never>;
+    query: Record<string, never>;
+    body: SubmitFramesDto;
+    response: FaceSubmitVerdictResponseDto;
+  };
+  "GET /attendance/face/enrolments": {
+    path: Record<string, never>;
+    query: { "status"?: "pending_review" | "approved" | "rejected" };
+    body: never;
+    response: FaceEnrolmentRowResponseDto[];
+  };
+  "GET /attendance/face/enrolments/{employeeId}/photos": {
+    path: { "employeeId": string };
+    query: Record<string, never>;
+    body: never;
+    response: FacePhotoUrlsResponseDto;
+  };
+  "POST /attendance/face/enrolments/{employeeId}/approve": {
+    path: { "employeeId": string };
+    query: Record<string, never>;
+    body: ApproveEnrolmentDto;
+    response: FaceEnrolmentStatusResponseDto;
+  };
+  "POST /attendance/face/enrolments/{employeeId}/reject": {
+    path: { "employeeId": string };
+    query: Record<string, never>;
+    body: RejectEnrolmentDto;
+    response: FaceEnrolmentStatusResponseDto;
+  };
+  "DELETE /attendance/face/enrolments/{employeeId}": {
+    path: { "employeeId": string };
+    query: Record<string, never>;
+    body: never;
+    response: void;
+  };
+  "GET /attendance/face/punches/{punchId}": {
+    path: { "punchId": string };
+    query: Record<string, never>;
+    body: never;
+    response: FacePunchReviewResponseDto;
   };
   "GET /document-types": {
     path: Record<string, never>;

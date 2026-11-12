@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Linking, View } from "react-native";
-import { CircleAlert, CircleCheck, CloudUpload, MapPinOff } from "lucide-react-native";
+import { CircleAlert, CircleCheck, CloudUpload, MapPinOff, ScanFace } from "lucide-react-native";
 import { PRODUCT_NAME } from "@/lib/env";
 
 import { Button } from "@/components/ui/Button";
@@ -109,6 +109,8 @@ function IssueIcon({ kind, color }: { kind: ClockIssue["kind"] | undefined; colo
       return <CloudUpload size={26} color={color} />;
     case "rejected":
       return <CircleAlert size={26} color={color} />;
+    case "face_failed":
+      return <ScanFace size={26} color={color} />;
     case "already_clocked_in":
       return <CircleCheck size={26} color={color} />;
     default:
@@ -169,6 +171,19 @@ function describe(issue: ClockIssue): SheetContent {
           : "You're already clocked in",
         body: "Tap Clock out when you're finished for the day.",
         action: null,
+        dismissLabel: "Close",
+        dismissKind: "close",
+      };
+
+    case "face_failed":
+      return {
+        title: "The face check couldn't run",
+        body: issue.canProceed
+          ? `${issue.message} You can clock in without it — your supervisor will see it was not checked.`
+          : `${issue.message} Your organisation needs the face check to clock in.`,
+        action: issue.canProceed
+          ? { label: "Clock in without it", kind: "proceed", variant: "primary" }
+          : null,
         dismissLabel: "Close",
         dismissKind: "close",
       };

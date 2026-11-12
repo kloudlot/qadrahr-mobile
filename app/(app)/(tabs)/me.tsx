@@ -19,6 +19,7 @@ import {
   Megaphone,
   Moon,
   ReceiptText,
+  ScanFace,
   ScrollText,
   ShieldAlert,
   TrendingUp,
@@ -46,6 +47,18 @@ import { useMyProfile } from "@/lib/queries/profile";
 import { signOut } from "@/lib/session";
 import { useTheme, useThemeColors, type Preference } from "@/lib/theme/ThemeProvider";
 import { useAuthStore } from "@/store/useAuthStore";
+import type { FaceState } from "@/lib/face";
+import { useFaceStatus } from "@/lib/queries/face";
+
+/** What the Face check row says under its title. */
+const FACE_SUBTITLE: Record<FaceState, string> = {
+  unavailable: "Not in use",
+  off: "Not asked of you",
+  needs_consent: "Needs your agreement",
+  needs_enrolment: "Not set up yet",
+  awaiting_review: "Waiting for HR",
+  ready: "Set up",
+};
 
 /**
  * Me — who I am, what I've asked for, and the settings.
@@ -63,6 +76,7 @@ export default function MeScreen() {
   const unread = useUnreadCount();
   const approvals = useApprovalInbox();
   const { has } = useModules();
+  const face = useFaceStatus();
   const team = useMyTeam();
   const policies = useOutstandingPolicies(has("employee_relations"));
   const [appearanceOpen, setAppearanceOpen] = useState(false);
@@ -205,6 +219,18 @@ export default function MeScreen() {
               />
               <BiometricRow />
               <Divider inset={68} />
+              {face.data && (face.data.required || face.data.consentGiven) ? (
+                <>
+                  <ListRow
+                    icon={ScanFace}
+                    iconTone="neutral"
+                    title="Face check"
+                    subtitle={FACE_SUBTITLE[face.data.state]}
+                    onPress={() => router.push("/face")}
+                  />
+                  <Divider inset={68} />
+                </>
+              ) : null}
               <ListRow icon={KeyRound} iconTone="neutral" title="Security" subtitle="Two-factor authentication" onPress={() => router.push("/security")} />
               <Divider inset={68} />
               <ListRow icon={LogOut} title="Sign out" destructive chevron={false} onPress={confirmSignOut} />

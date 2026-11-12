@@ -157,6 +157,26 @@ describe("toRequestBody", () => {
     expect(toRequestBody(punch()).clientPunchId).toBe("c1");
   });
 
+  it("never sends the queued photo's path, only where it was uploaded to", () => {
+    // The path is a file on this phone: meaningless to the server, and not
+    // something to hand over. What the server is given is the key the
+    // upload came back with.
+    const queued = punch({ selfieUri: "file:///documents/queued-selfies/c1.jpg" });
+
+    expect(toRequestBody(queued)).not.toHaveProperty("selfieUri");
+    expect(toRequestBody(queued)).not.toHaveProperty("faceCaptureKey");
+    expect(toRequestBody(queued, "t/acme/attendance/selfie-1/x-selfie.jpg")).toHaveProperty(
+      "faceCaptureKey",
+      "t/acme/attendance/selfie-1/x-selfie.jpg",
+    );
+    expect(JSON.stringify(toRequestBody(queued, "k"))).not.toContain("file://");
+  });
+
+  it("says when the phone reported a mock location, and says nothing when it did not", () => {
+    expect(toRequestBody(punch({ mockedLocation: true }))).toHaveProperty("mockedLocation", true);
+    expect(toRequestBody(punch())).not.toHaveProperty("mockedLocation");
+  });
+
   it("sends location as null rather than omitting it", () => {
     // withinGeofence: null means "no location given" on the server and
     // is explicitly not the same as false. Omitting the keys would be
