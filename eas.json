@@ -24,7 +24,7 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE-WITH-QADRAHR-API-HOST/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://api2.qadrahr.com/api/v1"
       },
       "channel": "preview",
       "android": {
