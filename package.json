@@ -68,6 +68,8 @@
     "build:preview:ios": "eas build --profile preview --platform ios",
     "build:preview:android": "eas build --profile preview --platform android",
     "build:prod": "eas build --profile production --platform all",
+    "build:prod:ios": "eas build --profile production --platform ios",
+    "build:prod:android": "eas build --profile production --platform android",
     "build:list": "eas build:list --limit 10",
     "eas:config": "eas config --profile device --platform ios",
     "eas:whoami": "eas whoami",
