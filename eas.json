@@ -34,6 +34,9 @@
 
     "production": {
       "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api2.qadrahr.com/api/v1"
+      },
       "autoIncrement": true
     }
   },
