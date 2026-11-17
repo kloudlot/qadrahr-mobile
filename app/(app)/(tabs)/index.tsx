@@ -31,8 +31,13 @@ import { Section } from "@/components/ui/List";
 import { Screen } from "@/components/ui/Screen";
 import { errorMessage } from "@/lib/api";
 import { useApprovalInbox } from "@/lib/queries/approvals";
-import { mondayOf, today as todayDate, useWeek } from "@/lib/queries/attendance";
+import {
+  mondayOf,
+  today as todayDate,
+  useWeek,
+} from "@/lib/queries/attendance";
 import { useMyCompany } from "@/lib/queries/company";
+import { useModules } from "@/lib/queries/modules";
 import { useLeaveLeft, useNextHoliday } from "@/lib/queries/home";
 import { useUnreadCount } from "@/lib/queries/notifications";
 import { useMyProfile } from "@/lib/queries/profile";
@@ -68,6 +73,7 @@ export default function HomeScreen() {
   const holiday = useNextHoliday(businessDate);
   const unread = useUnreadCount();
   const approvals = useApprovalInbox();
+  const { has } = useModules();
   const [refreshing, setRefreshing] = useState(false);
 
   // Flushes anything captured offline, on connectivity, on foreground,
@@ -91,30 +97,92 @@ export default function HomeScreen() {
   }
 
   const firstName = profile.data?.firstName ?? user?.firstName;
-  const fullName = [profile.data?.firstName ?? user?.firstName, profile.data?.lastName ?? user?.lastName]
+  const fullName = [
+    profile.data?.firstName ?? user?.firstName,
+    profile.data?.lastName ?? user?.lastName,
+  ]
     .filter(Boolean)
     .join(" ");
   const waiting = approvals.data?.data.length ?? 0;
 
+  // Only what the employer has for this company: plan, less anything switched off.
+  const attendanceOn = has("time_attendance");
+  const leaveOn = has("leave");
   const actions: QuickAction[] = [
-    { label: "Request leave", icon: CalendarPlus, tone: "info", onPress: () => router.push("/leave/request") },
-    { label: "Fix a punch", icon: TimerReset, tone: "warning", onPress: () => router.push("/attendance/correct") },
-    { label: "Payslips", icon: Wallet, tone: "success", onPress: () => router.navigate("/pay") },
-    { label: "Expenses", icon: ReceiptText, tone: "brand", onPress: () => router.push("/expenses") },
-    { label: "My requests", icon: ClipboardList, tone: "neutral", onPress: () => router.push("/requests") },
+    ...(leaveOn
+      ? [
+          {
+            label: "Request leave",
+            icon: CalendarPlus,
+            tone: "info" as const,
+            onPress: () => router.push("/leave/request"),
+          },
+        ]
+      : []),
+    ...(attendanceOn
+      ? [
+          {
+            label: "Fix a punch",
+            icon: TimerReset,
+            tone: "warning" as const,
+            onPress: () => router.push("/attendance/correct"),
+          },
+        ]
+      : []),
+    ...(has("payroll")
+      ? [
+          {
+            label: "Payslips",
+            icon: Wallet,
+            tone: "success" as const,
+            onPress: () => router.navigate("/pay"),
+          },
+        ]
+      : []),
+    ...(has("expenses")
+      ? [
+          {
+            label: "Expenses",
+            icon: ReceiptText,
+            tone: "brand" as const,
+            onPress: () => router.push("/expenses"),
+          },
+        ]
+      : []),
+    {
+      label: "My requests",
+      icon: ClipboardList,
+      tone: "neutral",
+      onPress: () => router.push("/requests"),
+    },
     // Only for someone who can approve: a manager's inbox, never an
     // empty screen for everyone else.
     ...(approvals.isSuccess
-      ? [{ label: "Approvals", icon: Inbox, tone: "brand" as const, count: waiting, onPress: () => router.push("/approvals") }]
+      ? [
+          {
+            label: "Approvals",
+            icon: Inbox,
+            tone: "brand" as const,
+            count: waiting,
+            onPress: () => router.push("/approvals"),
+          },
+        ]
       : []),
   ];
 
   const refresh = async () => {
     setRefreshing(true);
     await Promise.all(
-      [["attendance"], ["leave"], ["holidays"], ["notifications"], ["approvals"], ["broadcasts"], ["policies"]].map((queryKey) =>
-        queryClient.invalidateQueries({ queryKey }),
-      ),
+      [
+        ["attendance"],
+        ["leave"],
+        ["holidays"],
+        ["notifications"],
+        ["approvals"],
+        ["broadcasts"],
+        ["policies"],
+        ["entitlements"],
+      ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
     );
     setRefreshing(false);
   };
@@ -139,7 +207,11 @@ export default function HomeScreen() {
               </View>
               <IconButton
                 icon={Bell}
-                label={unread.data ? `Notifications, ${unread.data} unread` : "Notifications"}
+                label={
+                  unread.data
+                    ? `Notifications, ${unread.data} unread`
+                    : "Notifications"
+                }
                 tone="onBrand"
                 badge={(unread.data ?? 0) > 0}
                 onPress={() => router.push("/notifications")}
@@ -154,22 +226,24 @@ export default function HomeScreen() {
         }
       >
         <View className="gap-6">
-          <ClockCard
-            clockedIn={clock.clockedIn}
-            elapsedMinutes={clock.elapsedMinutes}
-            progress={clock.progress}
-            openedAt={clock.openedAt}
-            shift={clock.shift}
-            position={clock.position}
-            workLocation={clock.workLocation}
-            pendingOffline={clock.pendingOffline}
-            saving={clock.saving}
-            warning={clock.warning}
-            isPunching={clock.isPunching}
-            onPunch={() => clock.punch()}
-          />
+          {attendanceOn ? (
+            <ClockCard
+              clockedIn={clock.clockedIn}
+              elapsedMinutes={clock.elapsedMinutes}
+              progress={clock.progress}
+              openedAt={clock.openedAt}
+              shift={clock.shift}
+              position={clock.position}
+              workLocation={clock.workLocation}
+              pendingOffline={clock.pendingOffline}
+              saving={clock.saving}
+              warning={clock.warning}
+              isPunching={clock.isPunching}
+              onPunch={() => clock.punch()}
+            />
+          ) : null}
 
-          <FaceSetupBanner />
+          {attendanceOn ? <FaceSetupBanner /> : null}
 
           <QuickActions actions={actions} />
 
@@ -178,14 +252,16 @@ export default function HomeScreen() {
           <AnnouncementsCard />
 
           <View className="flex-row gap-4">
-            <StatTile
-              label="Leave left"
-              value={leave.data ? `${leave.data.days} days` : null}
-              caption={leave.data?.typeName}
-              icon={Plane}
-              tone="info"
-              onPress={() => router.navigate("/leave")}
-            />
+            {leaveOn ? (
+              <StatTile
+                label="Leave left"
+                value={leave.data ? `${leave.data.days} days` : null}
+                caption={leave.data?.typeName}
+                icon={Plane}
+                tone="info"
+                onPress={() => router.navigate("/leave")}
+              />
+            ) : null}
             <StatTile
               label="Next holiday"
               value={holiday.data ? formatHolidayDate(holiday.data.date) : null}
@@ -195,9 +271,19 @@ export default function HomeScreen() {
             />
           </View>
 
-          <Section title="This week" action="History" onAction={() => router.navigate("/attendance")}>
-            <WeekStrip monday={monday} days={week.data} today={businessDate} />
-          </Section>
+          {attendanceOn ? (
+            <Section
+              title="This week"
+              action="History"
+              onAction={() => router.navigate("/attendance")}
+            >
+              <WeekStrip
+                monday={monday}
+                days={week.data}
+                today={businessDate}
+              />
+            </Section>
+          ) : null}
         </View>
       </Screen>
 
@@ -216,7 +302,11 @@ export default function HomeScreen() {
       {/* The sitting for the punch being made, where the organisation asks
           for a face. It opens after every other question has been answered,
           and how it ends decides whether the punch is sent. */}
-      <FaceSittingModal purpose="punch" visible={clock.faceSitting} onResult={clock.onFaceSitting} />
+      <FaceSittingModal
+        purpose="punch"
+        visible={clock.faceSitting}
+        onResult={clock.onFaceSitting}
+      />
     </>
   );
 }

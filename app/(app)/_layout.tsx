@@ -5,6 +5,7 @@ import * as Notifications from "expo-notifications";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { BiometricGate } from "@/components/BiometricGate";
+import { ModuleGate } from "@/components/navigation/ModuleGate";
 import { OfflineBanner } from "@/components/state/OfflineBanner";
 import { toast } from "@/components/ui/Toast";
 import { openNotification, type PushPayload } from "@/lib/openNotification";
@@ -41,6 +42,7 @@ export default function AppLayout() {
       >
         <Stack.Screen name="(tabs)" />
       </Stack>
+      <ModuleGate />
       <OfflineBanner />
     </BiometricGate>
   );
@@ -74,7 +76,10 @@ function usePushRegistration(): void {
     attempt(true);
 
     const appState = AppState.addEventListener("change", (status) => {
-      if (status === "active" && Date.now() - lastAttempt.current > REREGISTER_AFTER_MS) {
+      if (
+        status === "active" &&
+        Date.now() - lastAttempt.current > REREGISTER_AFTER_MS
+      ) {
         attempt(false);
       }
     });
@@ -96,14 +101,21 @@ function usePushReceived(): void {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const subscription = Notifications.addNotificationReceivedListener((notification) => {
-      const { title, body, data } = notification.request.content;
-      const payload = data as PushPayload;
-      void refreshForPush(queryClient, typeof payload?.type === "string" ? payload.type : "");
-      if (title) {
-        toast.notify(title, body ?? undefined, () => openNotification(payload, queryClient));
-      }
-    });
+    const subscription = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        const { title, body, data } = notification.request.content;
+        const payload = data as PushPayload;
+        void refreshForPush(
+          queryClient,
+          typeof payload?.type === "string" ? payload.type : "",
+        );
+        if (title) {
+          toast.notify(title, body ?? undefined, () =>
+            openNotification(payload, queryClient),
+          );
+        }
+      },
+    );
     return () => subscription.remove();
   }, [queryClient]);
 }
@@ -124,7 +136,10 @@ function usePushTaps(): void {
       if (handled.current === id) return;
       handled.current = id;
 
-      openNotification(response.notification.request.content.data as PushPayload, queryClient);
+      openNotification(
+        response.notification.request.content.data as PushPayload,
+        queryClient,
+      );
     };
 
     // Opened from a push while the app was closed. Cleared once acted on,
@@ -135,7 +150,8 @@ function usePushTaps(): void {
       Notifications.clearLastNotificationResponse();
     }
 
-    const subscription = Notifications.addNotificationResponseReceivedListener(open);
+    const subscription =
+      Notifications.addNotificationResponseReceivedListener(open);
     return () => subscription.remove();
   }, [queryClient]);
 }

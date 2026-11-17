@@ -510,6 +510,8 @@ export type CompanyResponseDto = {
   "legacyPayslips": LegacyPayslipsResponseDto;
   /** Whether the legacy API key is saved. The key is never returned. */
   "legacyPayslipsKeySet": boolean;
+  /** Modules switched off for this company (PUT /companies/{id}/modules). Empty means everything in the plan. */
+  "disabledModules": ("time_attendance" | "face_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets")[];
   /** Users administering this company. */
   "adminIds": string[];
   "status": "active" | "inactive";
@@ -552,6 +554,21 @@ export type UpdateCompanyDto = {
   "status"?: "active" | "inactive";
 };
 
+export type CompanyModulesResponseDto = {
+  "companyId": string;
+  /** Modules the plan includes that can be switched on or off here. */
+  "available": ("core_hr" | "time_attendance" | "face_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets")[];
+  /** Of `available`, the ones switched off for this company. */
+  "disabled": ("core_hr" | "time_attendance" | "face_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets")[];
+  /** Always on (Core HR), shown for completeness. */
+  "locked": ("core_hr" | "time_attendance" | "face_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets")[];
+};
+
+export type UpdateCompanyModulesDto = {
+  /** Modules to switch off for this company. Send [] to switch everything in the plan back on. Core HR cannot be switched off. */
+  "disabledModules": ("time_attendance" | "face_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets")[];
+};
+
 export type FaceSettingsResponseDto = {
   "mode": "off" | "required";
   "onFailure": "flag" | "block";
@@ -562,8 +579,8 @@ export type FaceSettingsResponseDto = {
 
 export type FaceAvailabilityResponseDto = {
   "available": boolean;
-  /** Why the face check cannot be turned on, or null when it can. */
-  "reason": "not_configured" | "not_in_plan" | null;
+  /** Why the face check cannot be turned on, or null when it can. `off_for_company`: switched off for this company (Organization → Companies → Features). */
+  "reason": "not_configured" | "not_in_plan" | "off_for_company" | null;
 };
 
 export type AttendanceSettingsResponseDto = {
@@ -4793,8 +4810,10 @@ export type TenantPlanResponseDto = {
 export type EntitlementsResponseDto = {
   "planCode": string | null;
   "modules": ("core_hr" | "time_attendance" | "face_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets")[];
-  /** True when no plan restricts this tenant. */
+  /** True when no plan restricts this tenant and the current company switched nothing off. */
   "unrestricted": boolean;
+  /** Modules the plan includes but the current company switched off. Already left out of `modules`. */
+  "companyDisabled": ("core_hr" | "time_attendance" | "face_attendance" | "leave" | "payroll" | "recruitment" | "performance" | "employee_relations" | "documents" | "expenses" | "learning" | "reporting" | "ai" | "broadcast" | "assets")[];
 };
 
 export type OperatorLoginDto = {
@@ -7447,7 +7466,7 @@ export type AiStatusResponseDto = {
   /** Whether this organisation can use AI features right now. */
   "available": boolean;
   /** `not_configured`: this server has no AI service. `not_in_plan`: the plan does not include AI. Null when available. */
-  "reason": "not_configured" | "not_in_plan" | null;
+  "reason": "not_configured" | "not_in_plan" | "off_for_company" | null;
 };
 
 export type AiUsageTotalsResponseDto = {
@@ -7811,6 +7830,18 @@ export interface Operations {
     query: Record<string, never>;
     body: never;
     response: CompanyResponseDto;
+  };
+  "GET /companies/{id}/modules": {
+    path: { "id": string };
+    query: Record<string, never>;
+    body: never;
+    response: CompanyModulesResponseDto;
+  };
+  "PUT /companies/{id}/modules": {
+    path: { "id": string };
+    query: Record<string, never>;
+    body: UpdateCompanyModulesDto;
+    response: CompanyModulesResponseDto;
   };
   "GET /attendance/settings": {
     path: Record<string, never>;
